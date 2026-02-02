@@ -4,7 +4,7 @@
 Alex Harris
 
 ## Project Overview
-This project analyzes Airbnb listing data to compare the Columbus, Ohio and New York City markets. The goal is to [briefly describe what decisions your analysis could support].
+This project analyzes Airbnb listing data to compare the Columbus, Ohio and New York City markets. The goal is to understand Airbnb host behavior and patterns as well as the getting a better idea of the types of listing available on Airbnb.
 
 ## Research Questions
 
