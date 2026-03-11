@@ -1,0 +1,229 @@
+---
+title: 'Class 06: Scarping One or More Web Pages'
+author: "Alex Harris"
+date: "2026-02-23"
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE 
+    number_sections: TRUE
+    code_download: TRUE
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Demo: Scraping MU ISA Courses and Descs
+
+In this demo, I am scraping the course title and course description from [MU's ISA Course Bulletin](https://bulletin.miamioh.edu/courses-instruction/isa/).
+
+## Step Up
+```{r scarpe_isa}
+# step 0: can I scape this based on the robots.txt
+robotstxt::paths_allowed(paths = "https://bulletin.miamioh.edu/courses-instruction/isa/")
+
+# Step 1: get the raw HTML of the page into R (save this step so we don't overload the Miami servers)
+
+mu_webpage = rvest::read_html("https://bulletin.miamioh.edu/courses-instruction/isa/")
+
+# steps 2 and 3: we will do this separetnly for the titles and course descriptions 
+## div, p, strong found from highlighting heading you want, inspecting and looking at the column beneath the code
+mu_webpage |> 
+  rvest::html_elements("div.courseblock > p.courseblocktitle > strong") |>
+  rvest::html_text2() -> course_titles_a
+```
+
+## Finding the course titles
+```{r finding_course_titles}
+# alternatively, let us work our way through what the inspect gives us 
+# highlighted ISA 401 course title on the website -> went in inspect -> went to copy selector to get the #sc... 
+# if you anted to work your way through this, you will have to drop the n-th child 
+course_titles_b = 
+  mu_webpage |> 
+  rvest::html_elements("#sc_sccoursedescs > div:nth-child(23) > p.courseblocktitle > strong") |>
+  rvest::html_text2() 
+
+# From the selector gadget (chrome extension), it seems that we have two options
+course_titles_c = 
+  mu_webpage |> 
+  rvest::html_elements("strong") |>
+  rvest::html_text2() 
+
+# it also implied that I can potentially get this using p strong
+## command enter to run one section at a time if you dont want to run the whole chunk
+course_titles_d = 
+  mu_webpage |> 
+  rvest::html_elements("p strong") |>
+  rvest::html_text2() 
+
+```
+
+## Finding the course descriptions
+```{r finding_course_desc}
+# get the course descriptions 
+course_descriptions_a = 
+  mu_webpage |> 
+  rvest::html_elements(".courseblockdesc") |>
+  rvest::html_text2() 
+
+course_descriptions_b = 
+  mu_webpage |> 
+  rvest::html_elements("div#sc_sccoursedescs > div.courseblock > p.courseblockdesc") |>
+  rvest::html_text2() 
+
+# what happens we we use div p
+  mu_webpage |> 
+  rvest::html_elements("div p") |>
+  rvest::html_text2() -> temp_output
+  
+temp_output = temp_output[1:100]  
+
+#f1 to get help description
+course_titles = temp_output[ seq(from = 1, to = 100, by = 2)]
+course_desc = temp_output[ seq(from = 2, to = 100, by = 2)]
+
+df = data.frame(title = course_titles, desc = course_desc)
+```
+
+
+# Creating out Own Function to Scape FSB Pages
+```{r my_function}
+# https://bulletin.miamioh.edu/courses-instruction/isa/
+# my expecation is the only things that needs to change is isa
+# in one of three ways: 
+# (a) https://bulletin.miamioh.edu/courses-instruction/ remain fixed : isa/
+# (b) https://bulletin.miamioh.edu/courses-instruction what changes is /isa/
+# (c) change the entire URL each time
+
+# based on the first vote inc lass, we will do b
+scrape_fsb = function(suffix = 'isa'){
+  bulletin_url = paste0(
+    "https://bulletin.miamioh.edu/courses-instruction", "/", suffix, '/'
+  )
+  
+  # using same object names from before allows me to not change the subsequent code at all
+  # BUT: INPUT URL HAS TO BE A R OBJECT THAT CHANGES
+  mu_webpage = rvest::read_html(bulletin_url)
+  
+  # PREVIOUS CODE THAT WE ESTABKLE THAT IT WORKED FOR ISA
+  # what happens we we use div p
+  mu_webpage |> 
+    rvest::html_elements("div p") |>
+    rvest::html_text2() -> temp_output
+  
+  temp_output = temp_output[1:100]  
+  
+  #f1 to get help description
+  course_titles = temp_output[ seq(from = 1, to = 100, by = 2)]
+  course_desc = temp_output[ seq(from = 2, to = 100, by = 2)]
+  
+  df = data.frame(title = course_titles, desc = course_desc)
+  
+  Sys.sleep(2) # being nice and not overwhelming MU servers
+  
+  # you have to specify wat you are returning (either by not saving data.frame output into a R object) or by using explicitly return(df)
+  return(df)
+}
+  
+```
+
+## Test our custom function for marketing 
+```{r implement_fun}
+mkt_df = scrape_fsb(suffix='mkt')
+```
+
+
+# Use our Custom Function for all FSB Courses 
+```{r scrape_fsb_courses}
+
+fsb_vec = c('isa', 'mkt', 'fin', 'eco', 'mgt', 'acc', 'esp', 'bus')
+
+fsb_df = data.frame() # container where I store all the courses 
+for (name in fsb_vec) {
+  df = scrape_fsb(suffix = name)
+  
+  fsb_df = rbind(fsb_df, df)
+}
+
+
+```
+
+## Use our Function (via `purrr`) 
+```{r purrr}
+fsb_df_alt = purrr:map_df(
+  .x=fsv_vec, .f = scrape_fsb
+)
+```
+
+
+```{r scarpe_isa}
+
+
+# Step 1: get the raw HTML of the page into R (save this step so we don't overload the Miami servers)
+
+mu_webpage = rvest::read_html("https://bulletin.miamioh.edu/courses-instruction/isa/")
+
+# steps 2 and 3: we will do this separetnly for the titles and course descriptions 
+## div, p, strong found from highlighting heading you want, inspecting and looking at the column beneath the code
+mu_webpage |> 
+  rvest::html_elements("div.courseblock > p.courseblocktitle > strong") |>
+  rvest::html_text2() -> course_titles_a
+```
+
+```{r scrap 25_26}
+# step 0: can I scape this based on the robots.txt
+robotstxt::paths_allowed(paths = "https://www.planecrashinfo.com/2025/2025.htm")
+
+plane_url = "https://www.planecrashinfo.com/2025/2025.htm"
+
+# Step 1: get the raw HTML of the page into R (save this step so we don't overload the Miami servers)
+plane_page = rvest::read_html(plane_url)
+
+# steps 2 and 3: we will do this separately for the titles and course descriptions 
+## div, p, strong found from highlighting heading you want, inspecting and looking at the column beneath the code
+plane_page |> 
+  rvest::html_elements("div > center > table") |>
+  rvest::html_table(header = TRUE) |>
+  magrittr::extract2(1) -> plane_df
+```
+
+
+## My Own Function
+```{r scrape_fn}
+scrape_plane = function(plane_url){
+  
+# Step 1: get the raw HTML of the page into R (save this step so we don't overload the Miami servers)
+plane_page = rvest::read_html_live(plane_url)
+
+# steps 2 and 3: we will do this separately for the titles and course descriptions 
+## div, p, strong found from highlighting heading you want, inspecting and looking at the column beneath the code
+plane_page |> 
+  rvest::html_elements("div > center > table") |>
+  rvest::html_table(header = TRUE) |>
+  magrittr::extract2(1) -> plane_df
+  
+sys.sleep(10)
+
+return(plane_df)
+}
+```
+
+
+## Apply the Function
+```{r apply_planes}
+plane_urls = paste0(
+  "https://www.planecrashinfo.com/", 2025:2026, '/', 2025:2026, '.htm'
+  )
+
+plane_df = purrr::map_df(.x = plane_urls, .f = scrape_plane)
+```
+
+# Google Examples
+```{r}
+robotstxt::paths_allowed(paths = "https://www.google.com/about/careers/applications/jobs/results/?q=data%20analyst&page=")
+
+robotstxt:
+```
+
